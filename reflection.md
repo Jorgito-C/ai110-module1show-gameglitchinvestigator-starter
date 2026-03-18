@@ -20,7 +20,10 @@ A third thing I noticed was that when i changed the difficulty level in the drop
 - Give one example of an AI suggestion that was correct (including what the AI suggested and how you verified the result).
 - Give one example of an AI suggestion that was incorrect or misleading (including what the AI suggested and how you verified the result).
 
-I used Claude Code in terminal and also Copilot inline chat. [ANSWER HERE]
+I used Claude Code in terminal and also Copilot inline chat. 
+One example of a suggestion that was correct was changing the session state to account for the difficulty level. st.session_state.secret = random.randint(1, 100) ->  st.session_state.secret = random.randint(low, high)  
+ One example of a suggestion that was misleading is for the attempts allowed for each difficulty, "easy" gave 6 attempts, "normal" gave 8, and "hard" only 5. Easy and normal should just be switched, but Claude just kept "normal" difficulty as 8 and made "easy" give 10 attempts. 
+
 
 ---
 
@@ -31,7 +34,7 @@ I used Claude Code in terminal and also Copilot inline chat. [ANSWER HERE]
   and what it showed you about your code.
 - Did AI help you design or understand any tests? How?
 
-[ANSWER HERE]
+I ran the app again and made sure the outcome was different and correct. I also ran pytest on the test file in the tests/ folder, which tested all four logic functions — get_range_for_difficulty, parse_guess, check_guess, and update_score. The tests caught that check_guess returns a tuple, not a plain string, which meant the original assertions were never actually verifying anything correctly. Claude Code helped design the tests by identifying edge cases to cover, like decimal inputs, empty strings, and the minimum score floor on a win.
 
 ---
 
@@ -41,7 +44,7 @@ I used Claude Code in terminal and also Copilot inline chat. [ANSWER HERE]
 - How would you explain Streamlit "reruns" and session state to a friend who has never used Streamlit?
 - What change did you make that finally gave the game a stable secret number?
 
-[ANSWER HERE]
+The secret kept changing because every time I clicked a button or typed something, Streamlit re-ran the entire app.py file from top to bottom, which called random.randint() again and generated a new number every time. Streamlit reruns are like refreshing a webpage — everything resets unless you save it somewhere persistent. Session state is like a sticky notepad that survives each refresh, so anything stored there stays the same across reruns. The fix was wrapping the secret generation in a check: only generate a new secret if one doesn't already exist in session state, so it gets created once and stays stable for the whole game.
 
 ---
 
@@ -52,4 +55,4 @@ I used Claude Code in terminal and also Copilot inline chat. [ANSWER HERE]
 - What is one thing you would do differently next time you work with AI on a coding task?
 - In one or two sentences, describe how this project changed the way you think about AI generated code.
 
-[ANSWER HERE]
+One habit I want to keep is running the app manually after every fix to verify the behavior actually changed, not just that the code looks right. Next time I work with AI on a coding task, I would test each suggestion in the running app before accepting it, rather than trusting the explanation alone. This project showed me that AI-generated code can look polished and complete while hiding subtle logic bugs — like swapped difficulty ranges or broken comparisons — that only show up when you actually play the game.

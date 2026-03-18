@@ -1,81 +1,6 @@
 import random
 import streamlit as st
-
-def get_range_for_difficulty(difficulty: str):
-    if difficulty == "Easy":
-        return 1, 20
-    if difficulty == "Normal":
-        return 1, 50
-    if difficulty == "Hard":
-        return 1, 100
-    return 1, 100
-
-
-def parse_guess(raw: str):
-    if raw is None:
-        return False, None, "Enter a guess."
-
-    if raw == "":
-        return False, None, "Enter a guess."
-
-    try:
-        if "." in raw:
-            value = int(float(raw))
-        else:
-            value = int(raw)
-    except Exception:
-        return False, None, "That is not a number."
-
-    return True, value, None
-
-
-def check_guess(guess, secret):
-    if guess == secret:
-        return "Win", "🎉 Correct!"
-
-    try:
-        if guess > secret:
-            return "Too High", "📉 Go LOWER!"
-        else:
-            return "Too Low", "📈 Go HIGHER!"
-    except TypeError:
-        g = str(guess)
-        if g == secret:
-            return "Win", "🎉 Correct!"
-        if g > secret:
-            return "Too High", "📉 Go LOWER!"
-        return "Too Low", "📈 Go HIGHER!"
-
-
-def update_score(current_score: int, outcome: str, attempt_number: int):
-    """
-    Updates the player's score based on the game outcome and attempt number.
-    
-    Args:
-        current_score (int): The player's current score before the update.
-        outcome (str): The result of the guess. Can be "Win", "Too High", or "Too Low".
-        attempt_number (int): The number of attempts made (0-indexed).
-    
-    Returns:
-        int: The updated score after applying the outcome-based calculation.
-             - On "Win": Awards points calculated as (100 - 10 * (attempt_number + 1)),
-               with a minimum of 10 points.
-             - On "Too High" or "Too Low": Deducts 5 points as penalty.
-             - Otherwise: Returns the current score unchanged.
-    """
-    if outcome == "Win":
-        points = 100 - 10 * (attempt_number + 1)
-        if points < 10:
-            points = 10
-        return current_score + points
-
-    if outcome == "Too High":
-        return current_score - 5
-
-    if outcome == "Too Low":
-        return current_score - 5
-
-    return current_score
+from logic_utils import get_range_for_difficulty, parse_guess, check_guess, update_score
 
 st.set_page_config(page_title="Glitchy Guesser", page_icon="🎮")
 
@@ -106,12 +31,12 @@ st.sidebar.caption(f"Attempts allowed: {attempt_limit}")
 if "secret" not in st.session_state or st.session_state.get("difficulty") != difficulty:
     st.session_state.secret = random.randint(low, high)
     st.session_state.difficulty = difficulty
-    st.session_state.attempts = 1
+    st.session_state.attempts = 0
     st.session_state.status = "playing"
     st.session_state.history = []
 
 if "attempts" not in st.session_state:
-    st.session_state.attempts = 1
+    st.session_state.attempts = 0
 
 if "score" not in st.session_state:
     st.session_state.score = 0
@@ -136,22 +61,30 @@ with st.expander("Developer Debug Info"):
     st.write("Difficulty:", difficulty)
     st.write("History:", st.session_state.history)
 
-raw_guess = st.text_input(
-    "Enter your guess:",
-    key=f"guess_input_{difficulty}"
-)
+# FIX: text_input + button caused two separate reruns — first for the input change,
+# then for the button click — making the button appear to need two clicks.
+# Wrapping them in st.form batches both into a single rerun so one click always works.
+with st.form("guess_form"):
+    raw_guess = st.text_input(
+        "Enter your guess:",
+        key=f"guess_input_{difficulty}"
+    )
+    submit = st.form_submit_button("Submit Guess 🚀")
 
-col1, col2, col3 = st.columns(3)
+col1, col2 = st.columns(2)
 with col1:
-    submit = st.button("Submit Guess 🚀")
-with col2:
     new_game = st.button("New Game 🔁")
-with col3:
+with col2:
     show_hint = st.checkbox("Show hint", value=True)
 
 if new_game:
+    # FIX: attempts now initializes to 0 so the first guess correctly becomes attempt 1
     st.session_state.attempts = 0
     st.session_state.secret = random.randint(low, high)
+    # FIX: status was never reset, so after a loss it stayed "lost" and st.stop() blocked the new game
+    st.session_state.status = "playing"
+    # FIX: history was never cleared, so old guesses carried over into the new game's debug info
+    st.session_state.history = []
     st.success("New game started.")
     st.rerun()
 
@@ -173,12 +106,10 @@ if submit:
     else:
         st.session_state.history.append(guess_int)
 
-        if st.session_state.attempts % 2 == 0:
-            secret = str(st.session_state.secret)
-        else:
-            secret = st.session_state.secret
-
-        outcome, message = check_guess(guess_int, secret)
+        # FIX: secret was cast to a string on even attempts, causing broken lexicographic
+        # comparison (e.g. "7" > "50" is True) so hints were wrong every other guess.
+        # Always use the integer secret for a correct numeric comparison.
+        outcome, message = check_guess(guess_int, st.session_state.secret)
 
         if show_hint:
             st.warning(message)
